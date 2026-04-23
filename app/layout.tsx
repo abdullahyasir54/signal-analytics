@@ -3,7 +3,7 @@ import { Providers } from '@/app/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'BrandFlow',
+  title: 'Signal Analytics',
   description: 'E-commerce financial dashboard',
 };
 

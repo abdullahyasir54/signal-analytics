@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, DollarSign, BarChart3, ShoppingCart, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, DollarSign, BarChart3, LogOut, X } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 function NavItem({
@@ -37,9 +38,9 @@ function NavContent({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div className="p-6 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-xl text-indigo-600">
-          <ShoppingCart size={26} />
-          <span>BrandFlow</span>
+        <div className="flex items-center gap-2">
+          <Image src="/logo.svg" alt="Signal Analytics" width={32} height={32} priority />
+          <span className="font-bold text-xl text-indigo-600">Signal Analytics</span>
         </div>
         <button
           onClick={onClose}
