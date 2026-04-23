@@ -48,7 +48,7 @@ export function AnalyticsView() {
         <StatCard label="Net Profit"       value={formatPKR(metrics.netProfit)}     trend={`+${metrics.netMargin}%`}  icon={<DollarSign size={20} className="text-indigo-600" />} subtext="Net Margin" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-fit">
           <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
             <Calculator className="text-indigo-600" size={20} /> Financial Summary
@@ -85,7 +85,7 @@ export function AnalyticsView() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div className="xl:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
             <PieChartIcon className="text-amber-600" size={20} /> Cost &amp; Expense Breakdown (PKR)
           </h3>

@@ -51,7 +51,7 @@ export function AddEntryView() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+    <div className="max-w-2xl mx-auto bg-white p-5 sm:p-8 rounded-3xl border border-slate-200 shadow-xl">
       <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-indigo-600">
         <PlusCircle /> New Entry
       </h2>
@@ -63,7 +63,7 @@ export function AddEntryView() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="col-span-2">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
             <input

@@ -56,8 +56,8 @@ export function DashboardView() {
         <StatCard label="Net Profit" value={formatPKR(stats.profit)} icon={<DollarSign className="text-indigo-500" />} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
             <Calendar size={18} className="text-indigo-600" /> Revenue Trend (PKR)
           </h3>
