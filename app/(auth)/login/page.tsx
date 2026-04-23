@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 export default function LoginPage() {
@@ -25,10 +25,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-slate-100">
         <div className="text-center mb-8">
-          <div className="bg-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <ShoppingCart size={32} />
+          <div className="flex items-center justify-center mx-auto mb-4">
+            <Image src="/logo.svg" alt="Signal Analytics" width={56} height={56} priority />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">BrandFlow</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Signal Analytics</h2>
           <p className="text-slate-500 text-sm mt-1">Sign in to your account</p>
         </div>
 
