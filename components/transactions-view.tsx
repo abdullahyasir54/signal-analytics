@@ -3,11 +3,13 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Search, Pencil, Trash2, AlertTriangle, X, Check,
-  ChevronUp, ChevronDown, ChevronsUpDown, XCircle, SlidersHorizontal,
+  ChevronUp, ChevronDown, ChevronsUpDown, XCircle, SlidersHorizontal, Tag,
 } from 'lucide-react';
 import { useTransactions } from '@/context/transactions-context';
+import { useInventory } from '@/context/inventory-context';
 import { Transaction, TransactionType } from '@/lib/types';
 import { CATEGORIES, TYPE_LABELS } from '@/components/add-entry-view';
+import { ArticlePicker } from '@/components/article-picker';
 
 type SortKey = 'description' | 'type' | 'category' | 'amount' | 'date';
 type SortDir = 'asc' | 'desc';
@@ -61,6 +63,13 @@ const selectCls = 'w-full px-2 py-1.5 text-xs bg-white border border-slate-200 r
 
 export function TransactionsView() {
   const { transactions, updateTransaction, deleteTransaction } = useTransactions();
+  const { items: inventoryItems, transactionArticles, setArticlesForTransaction } = useInventory();
+
+  const articleNamesFor = (txId: string) =>
+    transactionArticles
+      .filter(ta => ta.transaction_id === txId)
+      .map(ta => inventoryItems.find(i => i.id === ta.item_id)?.name)
+      .filter(Boolean) as string[];
 
   const [query, setQuery]           = useState('');
   const [incompleteOnly, setIncompleteOnly] = useState(false);
@@ -71,9 +80,14 @@ export function TransactionsView() {
   const [selected, setSelected]     = useState<Set<string>>(new Set());
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [editForm, setEditForm]     = useState<EditForm | null>(null);
+  const [editArticleIds, setEditArticleIds] = useState<string[]>([]);
   const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkArticleIds, setBulkArticleIds] = useState<string[]>([]);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const set = (k: keyof ColFilters) =>
@@ -152,8 +166,26 @@ export function TransactionsView() {
     setSelected(new Set()); setBulkDeleting(false);
   };
 
-  const openEdit  = (tx: Transaction) => { setEditForm(buildEditForm(tx)); setEditingId(tx.id); };
-  const closeEdit = () => { setEditingId(null); setEditForm(null); };
+  const handleBulkAssign = async () => {
+    if (bulkArticleIds.length === 0) return;
+    setBulkAssigning(true);
+    for (const txId of selected) {
+      const existing = transactionArticles.filter(ta => ta.transaction_id === txId).map(ta => ta.item_id);
+      await setArticlesForTransaction(txId, [...existing, ...bulkArticleIds]);
+    }
+    setBulkAssigning(false);
+    setShowBulkAssign(false);
+    setBulkArticleIds([]);
+    setSelected(new Set());
+  };
+
+  const openEdit  = (tx: Transaction) => {
+    setEditForm(buildEditForm(tx));
+    setEditingId(tx.id);
+    setEditArticleIds(transactionArticles.filter(ta => ta.transaction_id === tx.id).map(ta => ta.item_id));
+    setSaveError('');
+  };
+  const closeEdit = () => { setEditingId(null); setEditForm(null); setEditArticleIds([]); setSaveError(''); };
   const handleTypeChange = (type: TransactionType) =>
     setEditForm(prev => prev ? { ...prev, type, category: CATEGORIES[type][0] } : prev);
 
@@ -163,14 +195,18 @@ export function TransactionsView() {
     const stillFlagged = !editForm.description.trim() || !editForm.amount || !editForm.date;
     const { error } = await updateTransaction(editingId, {
       description: editForm.description.trim() || null,
-      amount:   editForm.amount ? parseFloat(editForm.amount) : null,
-      date:     editForm.date || null,
-      type:     editForm.type || null,
-      category: editForm.category || null,
-      flagged:  stillFlagged,
+      amount:      editForm.amount ? parseFloat(editForm.amount) : null,
+      date:        editForm.date || null,
+      type:        editForm.type || null,
+      category:    editForm.category || null,
+      flagged:     stillFlagged,
     });
+    if (!error && editForm.type === 'sale') {
+      await setArticlesForTransaction(editingId, editArticleIds);
+    }
     setSaving(false);
-    if (!error) closeEdit();
+    if (error) setSaveError(error);
+    else closeEdit();
   };
 
   const handleDelete = async (id: string) => {
@@ -189,6 +225,10 @@ export function TransactionsView() {
   const selectionBar = (
     <>
       <span className="text-sm font-semibold text-slate-700">{selectedCount} selected</span>
+      <button onClick={() => { setShowBulkAssign(true); setBulkArticleIds([]); }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-all">
+        <Tag size={13} />Assign Articles
+      </button>
       <button onClick={handleBulkDelete} disabled={bulkDeleting}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-all disabled:opacity-50">
         <Trash2 size={13} />{bulkDeleting ? 'Deleting…' : `Delete ${selectedCount}`}
@@ -202,6 +242,34 @@ export function TransactionsView() {
 
   return (
     <>
+      {/* ── Bulk Assign Modal ─────────────────────────────────────────────── */}
+      {showBulkAssign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Assign Articles</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Added to {selectedCount} selected transaction{selectedCount !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setShowBulkAssign(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <ArticlePicker selected={bulkArticleIds} onChange={setBulkArticleIds} />
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleBulkAssign} disabled={bulkAssigning || bulkArticleIds.length === 0}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                <Check size={15} />{bulkAssigning ? 'Assigning…' : 'Assign to All'}
+              </button>
+              <button onClick={() => setShowBulkAssign(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl transition-all text-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Edit Modal ────────────────────────────────────────────────────── */}
       {editingId && editForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -212,6 +280,9 @@ export function TransactionsView() {
                 <X size={18} />
               </button>
             </div>
+            {saveError && (
+              <div className="mb-5 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 text-sm">{saveError}</div>
+            )}
             {missingFields(editForm).length > 0 && (
               <div className="mb-5 flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0" />
@@ -261,6 +332,15 @@ export function TransactionsView() {
                 </div>
               </div>
             </div>
+            {editForm.type === 'sale' && (
+              <div className="mt-4">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Assign Articles
+                  {editArticleIds.length > 0 && <span className="ml-2 text-indigo-500 normal-case font-normal">{editArticleIds.length} selected</span>}
+                </label>
+                <ArticlePicker selected={editArticleIds} onChange={setEditArticleIds} />
+              </div>
+            )}
             <div className="flex gap-3 mt-6">
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
@@ -415,6 +495,15 @@ export function TransactionsView() {
                           <AlertTriangle size={9} />Incomplete
                         </span>
                       )}
+                      {articleNamesFor(tx.id).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {articleNamesFor(tx.id).map((name, i) => (
+                            <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <p className="font-bold text-slate-900 text-sm tabular-nums shrink-0">
                       {tx.amount != null ? `Rs ${tx.amount.toLocaleString()}` : <span className="text-slate-300">—</span>}
@@ -559,14 +648,25 @@ export function TransactionsView() {
                         className="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer accent-indigo-600" />
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-900 text-sm">
-                          {tx.description ?? <span className="text-slate-400 italic font-normal">No description</span>}
-                        </span>
-                        {tx.flagged && (
-                          <span className="inline-flex items-center gap-1 text-[9px] uppercase font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 border border-amber-200">
-                            <AlertTriangle size={9} />Incomplete
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-slate-900 text-sm">
+                            {tx.description ?? <span className="text-slate-400 italic font-normal">No description</span>}
                           </span>
+                          {tx.flagged && (
+                            <span className="inline-flex items-center gap-1 text-[9px] uppercase font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-600 border border-amber-200">
+                              <AlertTriangle size={9} />Incomplete
+                            </span>
+                          )}
+                        </div>
+                        {articleNamesFor(tx.id).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {articleNamesFor(tx.id).map((name, i) => (
+                              <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                {name}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </td>

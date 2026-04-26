@@ -7,21 +7,24 @@ import { Transaction } from '@/lib/types';
 interface TransactionsContextType {
   transactions: Transaction[];
   loading: boolean;
-  addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<{ error: string | null }>;
+  addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<{ error: string | null; id: string | null }>;
   updateTransaction: (id: string, tx: Partial<Omit<Transaction, 'id'>>) => Promise<{ error: string | null }>;
   deleteTransaction: (id: string) => Promise<{ error: string | null }>;
 }
 
 const TransactionsContext = createContext<TransactionsContextType | null>(null);
 
-function withFlagDefault(row: Record<string, unknown>): Transaction {
-  return { flagged: false, ...row } as Transaction;
+function withDefaults(row: Record<string, unknown>): Transaction {
+  return { flagged: false, quantity: null, ...row } as Transaction;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function stripFlagged<T extends { flagged?: unknown }>({ flagged, ...rest }: T) {
+  void flagged;
   return rest;
 }
+
+const FULL_SELECT   = 'id, date, type, category, amount, quantity, description, flagged';
+const LEGACY_SELECT = 'id, date, type, category, amount, description';
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -31,24 +34,22 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, date, type, category, amount, description, flagged')
+        .select(FULL_SELECT)
         .order('date', { ascending: false, nullsFirst: false });
 
       if (error) {
         hasFlagged.current = false;
         const { data: fallback } = await supabase
           .from('transactions')
-          .select('id, date, type, category, amount, description')
+          .select(LEGACY_SELECT)
           .order('date', { ascending: false });
-        if (fallback) setTransactions(fallback.map(r => withFlagDefault(r as Record<string, unknown>)));
+        if (fallback) setTransactions(fallback.map(r => withDefaults(r as Record<string, unknown>)));
       } else {
         hasFlagged.current = true;
-        if (data) setTransactions(data.map(r => withFlagDefault(r as Record<string, unknown>)));
+        if (data) setTransactions(data.map(r => withDefaults(r as Record<string, unknown>)));
       }
-
       setLoading(false);
     };
     load();
@@ -56,25 +57,21 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = async (tx: Omit<Transaction, 'id'>) => {
     const payload = hasFlagged.current ? tx : stripFlagged(tx);
-    const select = hasFlagged.current
-      ? 'id, date, type, category, amount, description, flagged'
-      : 'id, date, type, category, amount, description';
+    const select  = hasFlagged.current ? FULL_SELECT : LEGACY_SELECT;
     const { data, error } = await supabase
       .from('transactions')
       .insert([payload])
       .select(select)
       .single();
     if (!error && data) {
-      setTransactions(prev => [withFlagDefault(data as unknown as Record<string, unknown>), ...prev]);
+      setTransactions(prev => [withDefaults(data as unknown as Record<string, unknown>), ...prev]);
     }
-    return { error: error?.message ?? null };
+    return { error: error?.message ?? null, id: (data as { id?: string } | null)?.id ?? null };
   };
 
   const updateTransaction = async (id: string, tx: Partial<Omit<Transaction, 'id'>>) => {
     const payload = hasFlagged.current ? tx : stripFlagged(tx);
-    const select = hasFlagged.current
-      ? 'id, date, type, category, amount, description, flagged'
-      : 'id, date, type, category, amount, description';
+    const select  = hasFlagged.current ? FULL_SELECT : LEGACY_SELECT;
     const { data, error } = await supabase
       .from('transactions')
       .update(payload)
@@ -83,7 +80,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       .single();
     if (!error && data) {
       setTransactions(prev =>
-        prev.map(t => t.id === id ? withFlagDefault(data as unknown as Record<string, unknown>) : t),
+        prev.map(t => t.id === id ? withDefaults(data as unknown as Record<string, unknown>) : t),
       );
     }
     return { error: error?.message ?? null };

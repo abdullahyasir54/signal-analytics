@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, DollarSign, BarChart3, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, DollarSign, BarChart3, PackageOpen, LogOut, X } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 function NavItem({
@@ -51,9 +51,10 @@ function NavContent({ onClose }: { onClose: () => void }) {
       </div>
 
       <nav className="flex-1 px-4 space-y-1">
-        <NavItem href="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={pathname === '/dashboard'} onClick={onClose} />
-        <NavItem href="/finance"   icon={<DollarSign size={20} />}      label="Transactions" active={pathname === '/finance'}   onClick={onClose} />
-        <NavItem href="/analytics" icon={<BarChart3 size={20} />}       label="Analytics"    active={pathname === '/analytics'} onClick={onClose} />
+        <NavItem href="/dashboard"  icon={<LayoutDashboard size={20} />} label="Dashboard"    active={pathname === '/dashboard'}  onClick={onClose} />
+        <NavItem href="/finance"    icon={<DollarSign size={20} />}     label="Transactions" active={pathname === '/finance'}    onClick={onClose} />
+        <NavItem href="/analytics"  icon={<BarChart3 size={20} />}      label="Analytics"    active={pathname === '/analytics'}  onClick={onClose} />
+        <NavItem href="/inventory"  icon={<PackageOpen size={20} />}    label="Inventory"    active={pathname === '/inventory'}  onClick={onClose} />
       </nav>
 
       <div className="p-4 border-t border-slate-100">
